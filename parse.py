@@ -8,7 +8,7 @@ import gzip
 
 line_pattern = re.compile(
     r'(\d{4}\/\d{2}\/\d{2}) (\d{2}:\d{2}:\d{2}) \[([A-Za-z]+)\] (\d+#\d+): ([*]\d+)( \[client [^]]+\])? ModSecurity: ([^[]+) (.*)')
-headers_pattern = re.compile(r', ([^:]+): ([^,]+)')
+headers_pattern = re.compile(r', ([^:]+): ((?:(?!, ).)+)')
 request_pattern = re.compile(r'"([^ ]+) ([^ ]+) ([^ ]+)"')
 
 
