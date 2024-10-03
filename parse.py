@@ -8,7 +8,8 @@ import gzip
 
 line_pattern = re.compile(
     r'(\d{4}\/\d{2}\/\d{2}) (\d{2}:\d{2}:\d{2}) \[([A-Za-z]+)\] (\d+#\d+): ([*]\d+)( \[client [^]]+\])? ModSecurity: ([^[]+) (.*)')
-headers_pattern = re.compile(r', ([^:]+): ((?:(?!, ).)+)')
+unquoted_headers_pattern = re.compile(r', ([^:]+): ([^"](?:(?!, ).)+)')
+quoted_headers_pattern = re.compile(r', ([^:]+): ("(?:(?!", ).)+")')
 request_pattern = re.compile(r'"([^ ]+) ([^ ]+) ([^ ]+)"')
 
 
@@ -26,6 +27,10 @@ def pivot_tags(tags):
     return results
 
 
+def parse_headers(line):
+    return unquoted_headers_pattern.findall(line) + quoted_headers_pattern.findall(line)
+
+
 def parse_line(log_name, line):
     m = line_pattern.match(line)
     if not m:
@@ -38,16 +43,21 @@ def parse_line(log_name, line):
               'request': m[5],
               'msg': m[7],
               'tags': pivot_tags(re.findall(r'\[([^ ]+) "?([^"]+)"?\] ', m[8])),
-              'headers': {k:v for k, v in headers_pattern.findall(m[8])},
+              'headers': {k:v for k, v in parse_headers(m[8])},
               'hash': hashlib.md5(line.encode('utf-8')).hexdigest(),
               'log_name': log_name}
 
-    if 'request' in fields['headers']:
-        rm = request_pattern.findall(fields['headers']['request'])
-        fields['headers']['request'] = {
-            'method': rm[0][0],
-            'path': rm[0][1],
-            'version': rm[0][2]}
+    if 'request' not in fields['headers']:
+        return line
+
+    rm = request_pattern.findall(fields['headers']['request'])
+    if not len(rm):
+        return line
+
+    fields['headers']['request'] = {
+        'method': rm[0][0],
+        'path': rm[0][1],
+        'version': rm[0][2]}
 
     return fields
 
